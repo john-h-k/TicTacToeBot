@@ -129,7 +129,6 @@ class MoveMaker:
     def winnable(self):
         return self.chain_exists(self.friend_type)
 
-    # todo index
     def __find_two_chain(self, tic_tac_toe_type):
         for index, chain in enumerate(self.board):
             if TicTacToeTypes.none in list(chain) and list(chain).count(tic_tac_toe_type) == 2:
