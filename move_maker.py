@@ -104,6 +104,7 @@ class MoveMaker:
         return self.__get_random_move()            
 
     def __get_algorithmic_move(self):
+        raise Exception("Not implemented yet")
         if (self.winnable() or self.block_required): return self.__get_reactive_move()
 
         if len(set(self.board)) == 1 and TicTacToeTypes.none in self.board:
