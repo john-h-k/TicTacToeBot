@@ -5,30 +5,38 @@ from move_maker import TicTacToeTypes
 from move_maker import TicTacToeDifficulties
 import numpy as np
 
-mm = logic.MoveMaker(TicTacToeTypes.nought, TicTacToeDifficulties.reactive)
+def print_board(board):
+    parray = [[x.value for x in row] for row in Noughts.board]
+    for row in parray:
+        print(row)
+    print()
+
+Noughts = logic.MoveMaker(TicTacToeTypes.nought, TicTacToeDifficulties.reactive)
+Crosses = logic.MoveMaker(TicTacToeTypes.cross, TicTacToeDifficulties.reactive)
 
 while True:
-    mm.add_move(mm.get_next_move(), TicTacToeTypes.cross)
-    
+    move = Noughts.get_next_move()
+    Noughts.add_move(move, TicTacToeTypes.nought)
+    Crosses.add_move(move, TicTacToeTypes.nought)
 
-    parray = [[x.value for x in row] for row in mm.board]
-    for row in parray:
-        print(row)
-    print()
+    assert(np.array_equal(Noughts.board, Crosses.board))
 
-    if mm.get_winner_or_none(): 
-        print("Won by ", mm.get_winner_or_none())
+    print_board(Noughts.board)
+
+    if Noughts.get_winner_or_none(): 
+        print("Won by ", Noughts.get_winner_or_none())
         break
 
-    mm.add_move(mm.get_next_move(), TicTacToeTypes.nought)
-    
-    parray = [[x.value for x in row] for row in mm.board]
-    for row in parray:
-        print(row)
-    print()
+    move = Crosses.get_next_move()
+    Noughts.add_move(move, TicTacToeTypes.cross)
+    Crosses.add_move(move, TicTacToeTypes.cross)
 
-    if mm.get_winner_or_none(): 
-        print("Won by ", mm.get_winner_or_none())
+    assert(np.array_equal(Noughts.board, Crosses.board))
+    
+    print_board(Crosses.board)
+
+    if Noughts.get_winner_or_none(): 
+        print("Won by ", Noughts.get_winner_or_none())
         break
 
 

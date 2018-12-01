@@ -5,6 +5,7 @@ import itertools
 from enum import Enum
 import random
 
+
 class TicTacToeGridLines(Enum):
     TopRow = 0
     MiddleRow = 1
@@ -35,8 +36,11 @@ class TicTacToeDifficulties(Enum):
     impossible = 2
 
 # not thread safe
+
+
 class MoveMaker:
     corners = ((0, 0), (0, 2), (2, 0), (2, 2))
+    edges = ((0, 1), (1, 2), (2, 1), (1, 0))
 
     @staticmethod
     def translate_board(board, noughts, crosses, none):
@@ -63,25 +67,35 @@ class MoveMaker:
                 return TicTacToeTypes.cross
             if list(chain).count(TicTacToeTypes.nought) == 3:
                 return TicTacToeTypes.nought
-        
+
         if TicTacToeTypes.none not in list(self.board.flatten()):
             return TicTacToeTypes.none
 
         return None
 
-    def add_move(self, coords, tic_tac_toe_type, override = False):
-        if coords == -1: return
+    def add_move(self, coords, tic_tac_toe_type, override=False):
+        if coords == -1:
+            return
         if override:
             self.board[coords[0], coords[1]] = tic_tac_toe_type
         elif self.board[coords[0], coords[1]] == TicTacToeTypes.none:
             self.board[coords[0], coords[1]] = tic_tac_toe_type
         else:
-            raise Exception("Cannot override coordinate {}; override set to false".format(coords))
+            raise Exception(
+                "Cannot override coordinate {}; override set to false".format(coords))
+
+        if tic_tac_toe_type == self.friend_type:
+            self.friend_cached_move = (coords, tic_tac_toe_type)
+        elif tic_tac_toe_type == self.enemy:
+            self.enemy_cached_move = (coords, tic_tac_toe_type)
 
     def get_next_move(self):
-        if self.difficulty == TicTacToeDifficulties.random: return self.__get_random_move()
-        if self.difficulty == TicTacToeDifficulties.reactive:  return self.__get_reactive_move()
-        if self.difficulty == TicTacToeDifficulties.algorithmic: return self.__get_algorithmic_move()
+        if self.difficulty == TicTacToeDifficulties.random:
+            return self.__get_random_move()
+        if self.difficulty == TicTacToeDifficulties.reactive:
+            return self.__get_reactive_move()
+        if self.difficulty == TicTacToeDifficulties.algorithmic:
+            return self.__get_algorithmic_move()
 
     def __get_random_move(self):
         # Probably more efficient way to do this, just keeps generating random numbers until it's a legal move
@@ -95,26 +109,58 @@ class MoveMaker:
 
     def __get_reactive_move(self):
         if (self.winnable()):
-            print("Winnable coords: {}".format(self.__find_two_chain(self.friend_type)))
-            return self.__find_two_chain(self.friend_type)
+            chain = self.__find_chain(self.friend_type, 2)
+            
         if (self.block_required()):
-            print("Block required coords: {}".format(self.__find_two_chain(self.enemy)))
-            return self.__find_two_chain(self.enemy)
+            chain = self.__find_chain(self.enemy, 2)
 
-        return self.__get_random_move()            
+        return self.__get_random_move()
+
+    def next_move_number(self):
+        return self.board.flatten().count(TicTacToeTypes.cross) + self.board.flatten().count(TicTacToeTypes.nought)
 
     def __get_algorithmic_move(self):
-        raise Exception("Not implemented yet")
-        if (self.winnable() or self.block_required): return self.__get_reactive_move()
+        if (self.winnable() or self.block_required):
+            return self.__get_reactive_move()
 
-        if len(set(self.board)) == 1 and TicTacToeTypes.none in self.board:
-            for corner in self.corners:
-                for val in self.board[corner[0], corner[1]]:
-                    if val == TicTacToeTypes.none:
-                        self.first = False
-                        return corner
+        if self.next_move_number() == 1:
+            return self.get_first_possible_corner()
 
-        #todo
+        if self.next_move_number() == 3:
+            if self.enemy_cached_move[0] in self.edges:
+                return self.get_opposite_corner(self.friend_cached_move)
+
+        if self.next_move_number() == 5:
+            self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1)
+
+    def get_opposite_corner(self, corner):
+        return self.corners[(self.corners.index(corner) + 2) % len(self.corners)]
+
+    def corners_full(self):
+        return all([self.board[corner[0], corner[1]] == TicTacToeTypes.none for corner in self.corners])
+
+    def edges_full(self):
+        return all([self.board[edge[0], edge[1]] == TicTacToeTypes.none for edge in self.edges])
+
+    def corners_empty(self):
+        return not any([self.board[corner[0], corner[1]] == TicTacToeTypes.none for corner in self.corners])
+
+    def edges_empty(self):
+        return not any([self.board[edge[0], edge[1]] == TicTacToeTypes.none for edge in self.edges])
+
+    def get_first_possible_corner(self):
+        for corner in self.corners:
+            if self.board[corner[0], corner[1]] == TicTacToeTypes.none:
+                return corner
+
+        return None
+
+    def get_first_possible_edge(self):
+        for edge in self.edges:
+            if self.board[edge[0], edge[1]] == TicTacToeTypes.none:
+                return edge
+
+        return None
 
     def chain_exists(self, tic_tac_toe_type):
         for chain in itertools.chain(self.board, self.board.T, [self.board.diagonal(), np.rot90(self.board).diagonal()]):
@@ -129,24 +175,23 @@ class MoveMaker:
     def winnable(self):
         return self.chain_exists(self.friend_type)
 
-    def __find_two_chain(self, tic_tac_toe_type):
+    def __find_chain(self, tic_tac_toe_type, num, required_value = TicTacToeTypes.none, num_required = 1):
         for index, chain in enumerate(self.board):
-            if TicTacToeTypes.none in list(chain) and list(chain).count(tic_tac_toe_type) == 2:
+            if list(chain).count(required_value) == num_required and list(chain).count(tic_tac_toe_type) == num:
                 return (index, list(chain).index(TicTacToeTypes.none))
 
         for index, chain in enumerate(self.board.T):
-            if TicTacToeTypes.none in list(chain) and list(chain).count(tic_tac_toe_type) == 2:
-                return (list(chain).index(TicTacToeTypes.none), index)  
+            if list(chain).count(required_value) == num_required and list(chain).count(tic_tac_toe_type) == num:
+                return (list(chain).index(TicTacToeTypes.none), index)
 
         diagonal = list(self.board.diagonal())
-        
-        if TicTacToeTypes.none in diagonal and TicTacToeTypes.none in diagonal and diagonal.count(tic_tac_toe_type) == 2:
+
+        if diagonal.count(required_value) == num_required and TicTacToeTypes.none in diagonal and diagonal.count(tic_tac_toe_type) == num:
             return (diagonal.index(TicTacToeTypes.none), diagonal.index(TicTacToeTypes.none))
 
         diagonal = list(np.rot90(self.board).diagonal())
 
-        if TicTacToeTypes.none in diagonal and diagonal.count(tic_tac_toe_type) == 2:
-            print(diagonal.index(TicTacToeTypes.none))
+        if diagonal.count(required_value) == num_required and diagonal.count(tic_tac_toe_type) == 2:
             return (diagonal.index(TicTacToeTypes.none), 2 - diagonal.index(TicTacToeTypes.none))
-        
+
         return None
