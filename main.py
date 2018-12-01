@@ -11,33 +11,54 @@ def print_board(board):
         print(row)
     print()
 
-Noughts = logic.MoveMaker(TicTacToeTypes.nought, TicTacToeDifficulties.reactive)
-Crosses = logic.MoveMaker(TicTacToeTypes.cross, TicTacToeDifficulties.reactive)
+nought_counter = 0
+cross_counter = 0
+draw_counter = 0
 
-while True:
-    move = Noughts.get_next_move()
-    Noughts.add_move(move, TicTacToeTypes.nought)
-    Crosses.add_move(move, TicTacToeTypes.nought)
+for i in range(1000):
+    Noughts = logic.MoveMaker(TicTacToeTypes.nought, TicTacToeDifficulties.algorithmic)
+    Crosses = logic.MoveMaker(TicTacToeTypes.cross, TicTacToeDifficulties.random)
+    while True:
+        move = Noughts.get_next_move()
+        Noughts.add_move(move, TicTacToeTypes.nought)
+        Crosses.add_move(move, TicTacToeTypes.nought)
 
-    assert(np.array_equal(Noughts.board, Crosses.board))
+        assert(np.array_equal(Noughts.board, Crosses.board))
 
-    print_board(Noughts.board)
+        print_board(Noughts.board)
 
-    if Noughts.get_winner_or_none(): 
-        print("Won by ", Noughts.get_winner_or_none())
-        break
+        result = Noughts.get_winner_or_none()
+        if result == TicTacToeTypes.nought:
+            nought_counter += 1
+            break
+        elif result == TicTacToeTypes.cross:
+            cross_counter += 1
+            break
+        elif result == TicTacToeTypes.none:
+            draw_counter += 1
+            break
 
-    move = Crosses.get_next_move()
-    Noughts.add_move(move, TicTacToeTypes.cross)
-    Crosses.add_move(move, TicTacToeTypes.cross)
+        move = Crosses.get_next_move()
+        Noughts.add_move(move, TicTacToeTypes.cross)
+        Crosses.add_move(move, TicTacToeTypes.cross)
 
-    assert(np.array_equal(Noughts.board, Crosses.board))
-    
-    print_board(Crosses.board)
+        assert(np.array_equal(Noughts.board, Crosses.board))
+        
+        print_board(Crosses.board)
 
-    if Noughts.get_winner_or_none(): 
-        print("Won by ", Noughts.get_winner_or_none())
-        break
+        result = Noughts.get_winner_or_none()
+        if result == TicTacToeTypes.nought:
+            nought_counter += 1
+            break
+        elif result == TicTacToeTypes.cross:
+            cross_counter += 1
+            break
+        elif result == TicTacToeTypes.none:
+            draw_counter += 1
+            break
+
+    print("Game")
 
 
-print("Finished") 
+print("Finished")
+print("Nought wins: {}\nCross wins: {}\nDraws: {}\n".format(nought_counter, cross_counter, draw_counter))

@@ -16,7 +16,6 @@ class TicTacToeGridLines(Enum):
     MiddleColumn = 6
     RightColumn = 7
 
-
 class TicTacToeTypes(Enum):
     @classmethod
     def get_enemy(cls, tic_tac_toe_type):
@@ -109,10 +108,10 @@ class MoveMaker:
 
     def __get_reactive_move(self):
         if (self.winnable()):
-            chain = self.__find_chain(self.friend_type, 2)
+            return self.__find_chain(self.friend_type, 2)
             
         if (self.block_required()):
-            chain = self.__find_chain(self.enemy, 2)
+            return self.__find_chain(self.enemy, 2)
 
         return self.__get_random_move()
 
@@ -131,7 +130,33 @@ class MoveMaker:
                 return self.get_opposite_corner(self.friend_cached_move)
 
         if self.next_move_number() == 5:
-            self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1)
+            while True:
+                move_win_chain = self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1, True) # Find a chain that can become a winning chain
+                intersect_win_chain = self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1, True, [move_win_chain])
+                chainA = self.__unpack_coords_to_all_coords(move_win_chain)
+                chainB = self.__unpack_coords_to_all_coords(intersect_win_chain)
+
+                potential_move = None
+                for a, b in zip(chainA, chainB):
+                    if a == b:
+                        potential_move = a
+                        break
+
+                if self.board[potential_move[0]][potential_move[1]] == TicTacToeTypes.none:
+                    return potential_move
+            
+
+    def __unpack_coords_to_all_coords(self, coords):
+        full_coords = []
+        flagA = 1 if coords[0][0] < coords[1][0] else -1
+        flagB = 1 if coords[0][1] < coords[1][1] else -1
+        generatorA = range(coords[0][0], coords[1][0] + flagA, flagA)
+        generatorB = range(coords[0][1], coords[1][1] + flagB, flagB)
+        for a, b in itertools.zip_longest(generatorA, generatorB, fillvalue=0):
+            full_coords.append((a, b))
+
+        return full_coords
+
 
     def get_opposite_corner(self, corner):
         return self.corners[(self.corners.index(corner) + 2) % len(self.corners)]
@@ -175,23 +200,30 @@ class MoveMaker:
     def winnable(self):
         return self.chain_exists(self.friend_type)
 
-    def __find_chain(self, tic_tac_toe_type, num, required_value = TicTacToeTypes.none, num_required = 1):
+    def __find_chain(self, tic_tac_toe_type, num, required_value = TicTacToeTypes.none, num_required = 1, full_index = False, exclude_chain = None):
+        if exclude_chain == None: exclude_chain = ()
+        exclude_chain = [tuple(x) for x in exclude_chain]
+        
         for index, chain in enumerate(self.board):
-            if list(chain).count(required_value) == num_required and list(chain).count(tic_tac_toe_type) == num:
-                return (index, list(chain).index(TicTacToeTypes.none))
+            chain = list(chain)
+            chain_start_end_indices = ((index, 0), (index, len(chain) - 1))
+            if chain.count(required_value) == num_required and chain.count(tic_tac_toe_type) == num and chain_start_end_indices not in exclude_chain:
+                return (index, chain.index(TicTacToeTypes.none)) if not full_index else chain_start_end_indices
 
         for index, chain in enumerate(self.board.T):
-            if list(chain).count(required_value) == num_required and list(chain).count(tic_tac_toe_type) == num:
-                return (list(chain).index(TicTacToeTypes.none), index)
+            chain = list(chain)
+            chain_start_end_indices = ((0, index), (len(chain) - 1, index))
+            if chain.count(required_value) == num_required and list(chain).count(tic_tac_toe_type) == num and chain_start_end_indices not in exclude_chain:
+                return (chain.index(TicTacToeTypes.none), index) if not full_index else chain_start_end_indices
 
         diagonal = list(self.board.diagonal())
 
-        if diagonal.count(required_value) == num_required and TicTacToeTypes.none in diagonal and diagonal.count(tic_tac_toe_type) == num:
-            return (diagonal.index(TicTacToeTypes.none), diagonal.index(TicTacToeTypes.none))
+        if diagonal.count(required_value) == num_required and diagonal.count(tic_tac_toe_type) == num and ((0, 0), (2, 2)) not in exclude_chain:
+            return (diagonal.index(TicTacToeTypes.none), diagonal.index(TicTacToeTypes.none)) if not full_index else ((0, 0), (2, 2))
 
         diagonal = list(np.rot90(self.board).diagonal())
 
-        if diagonal.count(required_value) == num_required and diagonal.count(tic_tac_toe_type) == 2:
-            return (diagonal.index(TicTacToeTypes.none), 2 - diagonal.index(TicTacToeTypes.none))
+        if diagonal.count(required_value) == num_required and diagonal.count(tic_tac_toe_type) == 2 and ((0, 2), (2, 0)) not in exclude_chain:
+            return (diagonal.index(TicTacToeTypes.none), 2 - diagonal.index(TicTacToeTypes.none)) if not full_index else ((0, 2), (2, 0))
 
         return None
