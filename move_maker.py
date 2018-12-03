@@ -5,17 +5,6 @@ import itertools
 from enum import Enum
 import random
 
-
-class TicTacToeGridLines(Enum):
-    TopRow = 0
-    MiddleRow = 1
-    BottomRow = 2
-    TopRightDiag = 3
-    TopLeftDiag = 4
-    LeftColumn = 5
-    MiddleColumn = 6
-    RightColumn = 7
-
 class TicTacToeTypes(Enum):
     @classmethod
     def get_enemy(cls, tic_tac_toe_type):
@@ -23,8 +12,7 @@ class TicTacToeTypes(Enum):
 
     nought = "O"
     cross = "X"
-    none = "E"
-
+    none = " "
 
 class TicTacToeDifficulties(Enum):
     random = 0
@@ -35,8 +23,6 @@ class TicTacToeDifficulties(Enum):
     impossible = 2
 
 # not thread safe
-
-
 class MoveMaker:
     corners = ((0, 0), (0, 2), (2, 0), (2, 2))
     edges = ((0, 1), (1, 2), (2, 1), (1, 0))
@@ -51,6 +37,7 @@ class MoveMaker:
 
     def __init__(self, friend_type, difficulty=TicTacToeDifficulties.algorithmic):
         self.difficulty = difficulty
+        self.counter = 0
         self.friend_type = friend_type
         self.enemy = TicTacToeTypes.get_enemy(self.friend_type)
 
@@ -88,6 +75,8 @@ class MoveMaker:
         elif tic_tac_toe_type == self.enemy:
             self.enemy_cached_move = (coords, tic_tac_toe_type)
 
+        self.counter += 1
+
     def get_next_move(self):
         if self.difficulty == TicTacToeDifficulties.random:
             return self.__get_random_move()
@@ -119,17 +108,31 @@ class MoveMaker:
         return self.board.flatten().count(TicTacToeTypes.cross) + self.board.flatten().count(TicTacToeTypes.nought)
 
     def __get_algorithmic_move(self):
-        if (self.winnable() or self.block_required):
+        if (self.winnable() or self.block_required()):
             return self.__get_reactive_move()
 
-        if self.next_move_number() == 1:
+        if self.counter == 0:
             return self.get_first_possible_corner()
 
-        if self.next_move_number() == 3:
+        if self.counter == 1:
+            if self.enemy_cached_move != self.center():
+                self.center_move = True
+                return self.center()
+            else:
+                self.center_move = False
+                self.get_first_possible_corner()
+
+        if self.counter == 2:
             if self.enemy_cached_move[0] in self.edges:
                 return self.get_opposite_corner(self.friend_cached_move)
 
-        if self.next_move_number() == 5:
+        if self.counter == 3:
+            if self.center_move:
+                return self.get_first_possible_edge()
+            else:
+                return self.__get_random_move()
+
+        if self.counter == 4:
             while True:
                 move_win_chain = self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1, True) # Find a chain that can become a winning chain
                 intersect_win_chain = self.__find_chain(TicTacToeTypes.none, 2, self.friend_type, 1, True, [move_win_chain])
@@ -150,9 +153,10 @@ class MoveMaker:
         full_coords = []
         flagA = 1 if coords[0][0] < coords[1][0] else -1
         flagB = 1 if coords[0][1] < coords[1][1] else -1
+        filler = coords[0][0] if coords[0][0] == coords[1][0] else coords[0][1]
         generatorA = range(coords[0][0], coords[1][0] + flagA, flagA)
         generatorB = range(coords[0][1], coords[1][1] + flagB, flagB)
-        for a, b in itertools.zip_longest(generatorA, generatorB, fillvalue=0):
+        for a, b in itertools.zip_longest(generatorA, generatorB, fillvalue=filler):
             full_coords.append((a, b))
 
         return full_coords
@@ -172,6 +176,9 @@ class MoveMaker:
 
     def edges_empty(self):
         return not any([self.board[edge[0], edge[1]] == TicTacToeTypes.none for edge in self.edges])
+
+    def center():
+        return (self.board.shape[0] // 2, self.board.shape[1] // 2)
 
     def get_first_possible_corner(self):
         for corner in self.corners:
